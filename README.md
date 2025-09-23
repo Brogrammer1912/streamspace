@@ -1,6 +1,6 @@
 # 🎬 StreamSpace - Your Gateway to Entertainment 🎬🎉
 
-[![Java CI with Maven](https://github.com/AkshathSai/StreamSpace/actions/workflows/ci-build.yml/badge.svg?branch=main)](https://github.com/AkshathSai/StreamSpace/actions/workflows/ci-build.yml)
+[![Java CI with Maven](https://github.com/AkshathSai/StreamSpace/actions/workflows/ci-build.yml/badge.svg?branch=main)](https://github.com/Brogrammer1912/StreamSpace/actions/workflows/ci-build.yml)
 ![Maven](https://badgen.net/badge/icon/maven?icon=maven&label)
 ![GitHub](https://img.shields.io/github/license/akshathsai/TuneTrip)
 > [!CAUTION]
@@ -71,7 +71,7 @@ Ready to explore the world of StreamSpace? [Dive right in!](#setup--installation
 - 🎞️ Stream movies while downloading in parallel for free!
 - [Coming soon] 💾 In-memory streaming without downloading 
 - [Future Plan] 🎵 Torrent Tunes  - Your favorite Music/Tunes delivered over P2P network
-- I'm pumped to collaborate and grow together in this open-source journey. [Let's connect! 🤝](mailto:akshathsai.pittala@outlook.com?)
+- I'm pumped to collaborate and grow together in this open-source journey. [Let's connect! 🤝](mailto:f4i9b0l35@mozmail.com?)
  
 
 ## Technologies Used
@@ -94,7 +94,7 @@ Ready to explore the world of StreamSpace? [Dive right in!](#setup--installation
 2. Clone the repository:
 
 ```
-git clone https://github.com/AkshathSai/StreamSpace.git
+git clone https://github.com/Brogrammer1912/StreamSpace.git
 ```
 
 3. Change into the project directory:
@@ -129,7 +129,7 @@ Please ensure your pull request adheres to coding conventions and includes appro
 
 ## Bug Reports
 
-Encountered an issue? Please [open a new issue](https://github.com/AkshathSai/StreamSpace/issues) and provide detailed information about the problem.
+Encountered an issue? Please [open a new issue](https://github.com/Brogrammer1912/StreamSpace/issues) and provide detailed information about the problem.
 
 
 
