@@ -15,7 +15,7 @@
 	<name>streamspace</name>
 	<description>StreamSpace</description>
 	<properties>
-		<java.version>24</java.version>
+		<java.version>25</java.version>
 		<bt.version>1.10</bt.version>
 		<spring.content.version>3.0.17</spring.content.version>
 	</properties>
