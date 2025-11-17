@@ -75,6 +75,11 @@
 			<artifactId>guava</artifactId>
 			<version>33.5.0-jre</version>
 		</dependency>
+        <dependency>
+            <groupId>com.dampcake</groupId>
+            <artifactId>bencode</artifactId>
+            <version>1.4.2</version>
+        </dependency>
 
 		<!-- Bt Library -->
 		<dependency>

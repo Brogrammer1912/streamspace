@@ -83,6 +83,30 @@
         <button type="submit" class="btn btn-primary">Download</button>
     </form>
 
+    <hr class="my-4">
+
+    <form id="submit-torrentFile" class="mb-3" hx-post="/download/torrent/file" hx-swap="outerHTML" enctype="multipart/form-data">
+
+        <div class="mb-3">
+            <label for="torrentFile" class="form-label">Upload Torrent File</label>
+            <input type="file" class="form-control" id="torrentFile" name="torrentFile" accept=".torrent" aria-describedby="torrentFileHelp">
+            <div id="torrentFileHelp" class="form-text text-muted">Select a .torrent file to upload and begin downloading.</div>
+        </div>
+
+        <div class="mb-3 form-check">
+            <input class="form-check-input" type="checkbox" id="sequentialCheckFile" name="sequentialCheck">
+            <label class="form-check-label" for="sequentialCheckFile">
+                Sequential
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-success">Upload & Download</button>
+    </form>
+
+    <div th:if="${error}" class="alert alert-danger" role="alert">
+        <span th:text="${error}"></span>
+    </div>
+
 </div>
 
 <div th:fragment="showAllDownloads" th:remove="tag">
