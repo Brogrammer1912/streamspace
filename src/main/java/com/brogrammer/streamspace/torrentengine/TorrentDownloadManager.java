@@ -32,36 +32,26 @@ public class TorrentDownloadManager {
     final DownloadProgressHandler downloadProgressHandler;
 
     public void startDownload(DownloadTask downloadTask) {
-        TorrentClient torrentClient = clients.get(downloadTask.getTorrentHash());
-        if (!downloads.existsById(downloadTask.getTorrentHash())) {
-            try {
-                if (torrentClient != null) {
-                    torrentClient.resume();
-                } else {
-                    torrentClient = new TorrentClient(
-                            downloadTaskToOptions(downloadTask),
-                            indexer,
-                            downloadProgressHandler,
-                            this); // Passing current instance
-                    clients.put(downloadTask.getTorrentHash(), torrentClient);
-                    torrentClient.resume();
-                }
-                downloads.save(downloadTask);
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-            }
-        } else {
-            if (torrentClient != null) {
-                torrentClient.resume();
-            } else {
+        String torrentHash = downloadTask.getTorrentHash();
+        TorrentClient torrentClient = clients.get(torrentHash);
+        boolean isNewDownload = !downloads.existsById(torrentHash);
+
+        try {
+            if (torrentClient == null) {
                 torrentClient = new TorrentClient(
                         downloadTaskToOptions(downloadTask),
                         indexer,
                         downloadProgressHandler,
-                        this); // Passing current instance
-                clients.put(downloadTask.getTorrentHash(), torrentClient);
-                torrentClient.resume();
+                        this);
+                clients.put(torrentHash, torrentClient);
             }
+            torrentClient.resume();
+
+            if (isNewDownload) {
+                downloads.save(downloadTask);
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
         }
     }
 

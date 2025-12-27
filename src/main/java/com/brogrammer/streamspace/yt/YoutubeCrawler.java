@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 public class YoutubeCrawler {
 
     private static final Pattern POLYMER_INITIAL_DATA_REGEX = Pattern.compile("(window\\[\"ytInitialData\"]|var ytInitialData)\\s*=\\s*(.*);");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public YouTubeResponseDTO getYoutubeTrailersByTitle(String searchQuery) {
 
@@ -70,20 +71,14 @@ public class YoutubeCrawler {
             Document document = Jsoup.connect("https://www.youtube.com/results?search_query=" + searchQuery + " trailer")
                     .get();
 
-            // document.getElementsByTag("a").forEach(System.out::println); // This will get all links in the document
-            // Match the JSON from the HTML. It should be within a script tag
-            // String matcher0 = matcher.group(0);
-            // String matcher1 = matcher.group(1);
-            // String matcher2 = matcher.group(2);
             Matcher matcher = POLYMER_INITIAL_DATA_REGEX.matcher(document.html());
             if (!matcher.find()) {
                 log.warn("Failed to match ytInitialData JSON object");
             }
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode jsonNode = objectMapper.readTree(matcher.group(2));
+            JsonNode jsonNode = OBJECT_MAPPER.readTree(matcher.group(2));
             JsonNode contents = jsonNode.get("contents");
-            return Objects.requireNonNull(objectMapper.treeToValue(contents, Content.class));
+            return Objects.requireNonNull(OBJECT_MAPPER.treeToValue(contents, Content.class));
         });
     }
 
