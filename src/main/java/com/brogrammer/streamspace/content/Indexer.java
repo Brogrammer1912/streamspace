@@ -5,6 +5,7 @@ import bt.metainfo.TorrentId;
 import com.brogrammer.streamspace.services.ContentDirectoryServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
@@ -17,18 +18,23 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class Indexer {
+
+    @Value("${video.file.extensions.streaming}")
+    private String videoFileExtensions;
+
+    @Value("${audio.file.extensions.streaming}")
+    private String audioFileExtensions;
 
     private final UnaryOperator<String> decodePathSegment = pathSegment -> UriUtils.decode(pathSegment, StandardCharsets.UTF_8.name());
     private final Function<Path, String> decodeContentType = fileEntryPath -> MediaTypeFactory.getMediaType(new FileSystemResource(fileEntryPath)).orElse(MediaType.APPLICATION_OCTET_STREAM).toString();
@@ -39,23 +45,14 @@ public class Indexer {
     public void indexMovie(TorrentFile file, String torrentName, String fileName, TorrentId torrentId, String contentMimeType) {
         log.info("FileName {}", fileName);
         log.info("TorrentName {}", torrentName);
-
-        Video video;
         List<Video> videos = videoRepository.findAllByName(fileName);
-
         if (!videos.isEmpty()) {
             videos.forEach(vid -> log.info("Movie Found: {}", vid.getName()));
             videoRepository.deleteAllByName(fileName);
-            video = createVideoEntity(file, torrentName, fileName, torrentId, contentMimeType);
-            video.setMovieCode(torrentId.toString().toUpperCase());
-            log.info("{} already indexed", fileName);
-            videoRepository.save(video);
-        } else {
-            video = createVideoEntity(file, torrentName, fileName, torrentId, contentMimeType);
-            log.debug("Content ID {}", contentDirectoryServices.getMoviesContentStore() + torrentName + "/" + fileName);
-            videoRepository.save(video);
         }
-
+        Video video = createVideoEntityTorrentSource(file, torrentName, fileName, torrentId, contentMimeType);
+        log.debug("Content ID {}", contentDirectoryServices.getMoviesContentStore() + torrentName + "/" + fileName);
+        videoRepository.save(video);
     }
 
     public void indexMusic(TorrentFile file, String torrentName, String fileName, TorrentId torrentId) {
@@ -65,44 +62,38 @@ public class Indexer {
         song.setContentLength(file.getSize());
         song.setName(fileName);
         song.setSummary(fileName);
-        song.setContentMimeType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        log.info(contentDirectoryServices.getMoviesContentStore() + torrentName + "/" + fileName);
-        song.setContentId(contentDirectoryServices.getMoviesContentStore() + torrentName + "/" + fileName);
+        song.setContentMimeType(decodeContentType.apply(Paths.get(fileName)));
+        log.info("Content ID for music: {}", contentDirectoryServices.getMusicContentStore() + torrentName + "/" + fileName);
+        song.setContentId(contentDirectoryServices.getMusicContentStore() + torrentName + "/" + fileName);
         song.setSongId(torrentId.toString().toUpperCase());
         song.setSource(SOURCE.TORRENT);
         musicRepository.save(song);
     }
 
-    /**
-     * Concurrent indexer
-     */
-    public CompletableFuture<Void> indexLocalMedia(Set<String> locations) {
+    public CompletableFuture<Object> indexLocalMedia(Set<String> locations) {
         return findLocalMediaFiles(locations)
                 .thenCompose(paths -> {
-                    List<Path> musicPaths = filterPaths(paths, ".mp3", ".flac");
-                    List<Path> videoFolderPaths = filterPaths(paths, ".mp4", ".mkv", ".avi", ".mpeg");
+                    List<Path> musicPaths = filterPaths(paths, audioFileExtensions.split(","));
+                    List<Path> videoFilePaths = filterPaths(paths, videoFileExtensions.split(","));
 
-                    try {
-                        List<Video> finalVideos = createVideoEntities(videoFolderPaths);
-                        List<Song> finalSongs = createMusicEntities(musicPaths);
+                    List<Video> finalVideos = createVideoEntities(videoFilePaths);
+                    List<Song> finalSongs = createMusicEntities(musicPaths);
 
-                        CompletableFuture<Void> videosFuture = saveVideosAsync(finalVideos);
-                        CompletableFuture<Void> musicFuture = saveMusicAsync(finalSongs);
+                    videoRepository.saveVideos(finalVideos);
+                    musicRepository.saveMusicList(finalSongs);
 
-                        return CompletableFuture.allOf(videosFuture, musicFuture);
-                    } catch (IOException e) {
-                        log.error("Error creating media entities", e);
-                        return CompletableFuture.failedFuture(e);
-                    }
+                    return CompletableFuture.completedFuture(null);
                 })
-                .exceptionally(throwable -> {
-                    log.error("Error indexing media", throwable);
-                    return null;
-                });
+                .exceptionally(
+                        throwable -> {
+                            log.error("Error indexing local media files", throwable);
+                            throw new RuntimeException(throwable);
+                        }
+                );
     }
 
     public CompletableFuture<List<Path>> findLocalMediaFiles(Set<String> locations) {
-        final String pattern = "glob:**/*.{mp4,mpeg,mp3,mkv,flac}";
+        final String pattern = buildGlobPattern();
         List<CompletableFuture<List<Path>>> futures = new ArrayList<>();
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher(pattern);
 
@@ -135,6 +126,16 @@ public class Indexer {
                         .toList());
     }
 
+    private String buildGlobPattern() {
+        String extensions = Stream.concat(
+                        Arrays.stream(videoFileExtensions.split(",")),
+                        Arrays.stream(audioFileExtensions.split(",")))
+                .map(String::trim)
+                .map(ext -> ext.startsWith(".") ? ext.substring(1) : ext)
+                .collect(Collectors.joining(","));
+        return "glob:**/*.{".concat(extensions).concat("}");
+    }
+
     private List<Path> filterPaths(List<Path> paths, String... extensions) {
         Set<String> extensionSet = Set.of(extensions);
         return paths.parallelStream()
@@ -142,10 +143,10 @@ public class Indexer {
                     String pathString = path.toString().toLowerCase();
                     return extensionSet.stream().anyMatch(pathString::endsWith);
                 })
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
-    private List<Video> createVideoEntities(List<Path> paths) throws IOException {
+    private List<Video> createVideoEntities(List<Path> paths) {
         Path userHomePath = Paths.get(ContentDirectoryServices.userHomePath);
 
         return paths.parallelStream().map(entry -> {
@@ -165,71 +166,35 @@ public class Indexer {
                 log.error("Error creating video entity for {}", entry, e);
                 return null;
             }
-        }).filter(video -> video != null).toList();
+        }).filter(Objects::nonNull).toList();
     }
 
-    private CompletableFuture<Void> saveVideosAsync(List<Video> videos) {
-        return CompletableFuture.runAsync(() -> {
-            // Get all content IDs in one query
-            Set<String> existingContentIds = new HashSet<>();
-            videoRepository.findAllContentIds().forEach(existingContentIds::add);
+    private List<Song> createMusicEntities(List<Path> paths) {
+        Path userHomePath = Paths.get(ContentDirectoryServices.userHomePath);
 
-            List<Video> nonExistingVideos = videos.stream()
-                    .filter(video -> !existingContentIds.contains(video.getContentId()))
-                    .toList();
-
-            // Process in batches of 500
-            final int batchSize = 500;
-            for (int i = 0; i < nonExistingVideos.size(); i += batchSize) {
-                List<Video> batch = nonExistingVideos.subList(
-                    i, Math.min(i + batchSize, nonExistingVideos.size())
-                );
-                videoRepository.saveAll(batch);
+        return paths.parallelStream().map(entry -> {
+            try {
+                log.debug(entry.toString());
+                String encodedFileName = decodePathSegment.apply(entry.getFileName().toString());
+                Path relativePath = userHomePath.relativize(entry);
+                return new Song()
+                        .setName(encodedFileName)
+                        .setContentLength(Files.size(entry))
+                        .setSummary(entry.getFileName().toString())
+                        .setContentId(File.separator + decodePathSegment.apply(relativePath.toString()))
+                        .setContentMimeType(decodeContentType.apply(entry))
+                        .setSongId(encodedFileName)
+                        .setSource(SOURCE.LOCAL);
+            } catch (IOException e) {
+                log.error("Error creating song entity for {}", entry, e);
+                return null;
             }
-        }).thenRun(() -> log.info("Finished Indexing Videos"));
+        }).filter(Objects::nonNull).toList();
     }
 
-    private CompletableFuture<Void> saveMusicAsync(List<Song> songs) {
-        return CompletableFuture.runAsync(() -> {
-            List<Song> nonExistingSongs = songs.stream()
-                    .filter(song -> !musicRepository.existsByContentId(song.getContentId()))
-                    .toList();
-            musicRepository.saveAll(nonExistingSongs);
-        }).thenRun(() -> log.info("Finished Indexing Music"));
-    }
-
-    private List<Song> createMusicEntities(List<Path> paths) throws IOException {
-        Song song = null;
-        List<Song> songs = new ArrayList<>();
-        Path relativePath;
-        String encodedFileName;
-
-        for (Path entry : paths) {
-            log.debug(entry.toString());
-            encodedFileName = decodePathSegment.apply(entry.getFileName().toString());
-
-            // Relativize the entry path against the user home directory
-            relativePath = Paths.get(ContentDirectoryServices.userHomePath).relativize(entry);
-
-            song = new Song()
-                    .setName(encodedFileName)
-                    .setContentLength(Files.size(entry))
-                    .setSummary(entry.getFileName().toString())
-                    .setContentId(File.separator + decodePathSegment.apply(relativePath.toString()))
-                    //.setContentId(decodePathSegment.apply(relativePath.toString()))
-                    .setContentMimeType(decodeContentType.apply(entry))
-                    .setSongId(encodedFileName)
-                    .setSource(SOURCE.LOCAL);
-
-            songs.add(song);
-        }
-
-        return songs;
-    }
-
-    private Video createVideoEntity(TorrentFile file, String torrentName,
-                                    String fileName, TorrentId torrentId,
-                                    String contentMimeType) {
+    private Video createVideoEntityTorrentSource(TorrentFile file, String torrentName,
+                                                 String fileName, TorrentId torrentId,
+                                                 String contentMimeType) {
         return new Video()
                 .setContentLength(file.getSize())
                 .setName(fileName)

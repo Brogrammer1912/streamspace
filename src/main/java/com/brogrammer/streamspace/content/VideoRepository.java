@@ -7,14 +7,14 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RepositoryRestResource(path="videos", collectionResourceRel="videos")
 public interface VideoRepository extends ListCrudRepository<Video, String> {
 
     List<Video> findAllByName(String name);
-
-    boolean existsByContentId(String contentId);
 
     @Modifying
     @Transactional
@@ -26,7 +26,17 @@ public interface VideoRepository extends ListCrudRepository<Video, String> {
     @Query("DELETE FROM Video v where v.name=:name")
     void deleteAllByName(@Param("name") String name);
 
-    // Add to VideoRepository interface
     @Query("SELECT v.contentId FROM Video v")
     List<String> findAllContentIds();
+
+    @Transactional
+    default void saveVideos(List<Video> videos) {
+        Set<String> existingContentIds = new HashSet<>(findAllContentIds());
+
+        List<Video> nonExistingVideos = videos.stream()
+                .filter(video -> !existingContentIds.contains(video.getContentId()))
+                .toList();
+
+        saveAll(nonExistingVideos);
+    }
 }

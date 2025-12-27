@@ -33,6 +33,7 @@ public class BackgroundServices {
 
         // Index local media asynchronously
         indexer.indexLocalMedia(new HashSet<>(ContentDirectoryServices.mediaFolders.values()))
+                .thenRun(() -> log.info("Indexing of local media completed.")) // Log completion of indexing
                 .thenRun(torrentDownloadManager::startAllPendingDownloads) // Start background downloads once indexing is done
                 .exceptionally(throwable -> { // Handle any errors during indexing or download initiation
                     log.error("Error during media indexing or starting background downloads", throwable);
