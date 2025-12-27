@@ -3,54 +3,60 @@ package com.brogrammer.streamspace.resilience;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.TimeUnit;
-
 @Slf4j
 @Service
 public class RetryService<T> {
 
-    //@Value("${retryAttempts}")
-    private int retryAttempts = 4;
-    //@Value("${timeToWait}")
-    private final long timeToWait = TimeUnit.SECONDS.toSeconds(1000);
+    private static final int DEFAULT_MAX_ATTEMPTS = 4;
+    private static final long DEFAULT_WAIT_MILLIS = 1000L;
 
     public T retry(RetryExecutor<T> retryExecutor) {
+        return retry(retryExecutor, DEFAULT_MAX_ATTEMPTS, DEFAULT_WAIT_MILLIS);
+    }
 
-        while (shouldRetry()) {
+    public T retry(RetryExecutor<T> retryExecutor, int maxAttempts, long waitMillis) {
+        int remainingAttempts = maxAttempts;
+
+        while (remainingAttempts > 0) {
             try {
-                //log.info("Retrying...");
                 T result = retryExecutor.run();
-                if (result!=null) {
+                if (result != null) {
                     return result;
                 }
-                //return; // if successful, exit method
+                // Result is null, decrement attempts and retry
+                remainingAttempts--;
+                if (remainingAttempts > 0 && !waitBeforeNextRetry(waitMillis)) {
+                    return null; // Interrupted, exit early
+                }
             } catch (Exception e) {
-                retryAttempts--;
-                if (shouldRetry()) {
-                    //log.error(e.getMessage(), e);
+                remainingAttempts--;
+                if (remainingAttempts > 0) {
                     log.error(e.getMessage());
-                    waitBeforeNextRetry();
+                    if (!waitBeforeNextRetry(waitMillis)) {
+                        return null; // Interrupted, exit early
+                    }
                 } else {
-                    //throw e; // if all retries failed, throw the exception
                     log.error(e.getMessage(), e);
                 }
             }
         }
 
-        return null; // if all retries failed
+        return null;
     }
 
-    private boolean shouldRetry() {
-        return retryAttempts > 0;
-    }
-
-    private void waitBeforeNextRetry() {
+    /**
+     * Waits before the next retry attempt.
+     * @return true if wait completed successfully, false if interrupted
+     */
+    private boolean waitBeforeNextRetry(long waitMillis) {
         try {
             log.info("Waiting before next retry...");
-            Thread.sleep(timeToWait);
-        } catch (Exception e) {
-            log.error("Exception while waiting for next retry {}", e.getMessage(), e);
+            Thread.sleep(waitMillis);
+            return true;
+        } catch (InterruptedException e) {
+            log.error("Retry interrupted: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
+            return false;
         }
     }
 

@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -140,7 +141,12 @@ public class Indexer {
         return paths.parallelStream()
                 .filter(path -> {
                     String pathString = path.toString().toLowerCase();
-                    return extensionSet.stream().anyMatch(pathString::endsWith);
+                    for (String ext : extensionSet) {
+                        if (pathString.endsWith(ext)) {
+                            return true;
+                        }
+                    }
+                    return false;
                 })
                 .toList();
     }
@@ -165,7 +171,7 @@ public class Indexer {
                 log.error("Error creating video entity for {}", entry, e);
                 return null;
             }
-        }).filter(video -> video != null).toList();
+        }).filter(Objects::nonNull).toList();
     }
 
     private CompletableFuture<Void> saveVideosAsync(List<Video> videos) {
@@ -191,40 +197,47 @@ public class Indexer {
 
     private CompletableFuture<Void> saveMusicAsync(List<Song> songs) {
         return CompletableFuture.runAsync(() -> {
+            // Get all content IDs in one query to avoid N+1 problem
+            Set<String> existingContentIds = new HashSet<>();
+            musicRepository.findAllContentIds().forEach(existingContentIds::add);
+
             List<Song> nonExistingSongs = songs.stream()
-                    .filter(song -> !musicRepository.existsByContentId(song.getContentId()))
+                    .filter(song -> !existingContentIds.contains(song.getContentId()))
                     .toList();
-            musicRepository.saveAll(nonExistingSongs);
+
+            // Process in batches of 500
+            final int batchSize = 500;
+            for (int i = 0; i < nonExistingSongs.size(); i += batchSize) {
+                List<Song> batch = nonExistingSongs.subList(
+                    i, Math.min(i + batchSize, nonExistingSongs.size())
+                );
+                musicRepository.saveAll(batch);
+            }
         }).thenRun(() -> log.info("Finished Indexing Music"));
     }
 
     private List<Song> createMusicEntities(List<Path> paths) throws IOException {
-        Song song = null;
-        List<Song> songs = new ArrayList<>();
-        Path relativePath;
-        String encodedFileName;
+        Path userHomePath = Paths.get(ContentDirectoryServices.userHomePath);
 
-        for (Path entry : paths) {
-            log.debug(entry.toString());
-            encodedFileName = decodePathSegment.apply(entry.getFileName().toString());
+        return paths.parallelStream().map(entry -> {
+            try {
+                log.debug(entry.toString());
+                String encodedFileName = decodePathSegment.apply(entry.getFileName().toString());
+                Path relativePath = userHomePath.relativize(entry);
 
-            // Relativize the entry path against the user home directory
-            relativePath = Paths.get(ContentDirectoryServices.userHomePath).relativize(entry);
-
-            song = new Song()
-                    .setName(encodedFileName)
-                    .setContentLength(Files.size(entry))
-                    .setSummary(entry.getFileName().toString())
-                    .setContentId(File.separator + decodePathSegment.apply(relativePath.toString()))
-                    //.setContentId(decodePathSegment.apply(relativePath.toString()))
-                    .setContentMimeType(decodeContentType.apply(entry))
-                    .setSongId(encodedFileName)
-                    .setSource(SOURCE.LOCAL);
-
-            songs.add(song);
-        }
-
-        return songs;
+                return new Song()
+                        .setName(encodedFileName)
+                        .setContentLength(Files.size(entry))
+                        .setSummary(entry.getFileName().toString())
+                        .setContentId(File.separator + decodePathSegment.apply(relativePath.toString()))
+                        .setContentMimeType(decodeContentType.apply(entry))
+                        .setSongId(encodedFileName)
+                        .setSource(SOURCE.LOCAL);
+            } catch (IOException e) {
+                log.error("Error creating song entity for {}", entry, e);
+                return null;
+            }
+        }).filter(Objects::nonNull).toList();
     }
 
     private Video createVideoEntity(TorrentFile file, String torrentName,
