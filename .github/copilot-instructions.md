@@ -151,12 +151,12 @@ java -jar streamspace-0.0.1.jar
 - This is an **educational project** - emphasize responsible use
 - Do not encourage copyright infringement
 - Be mindful of legal implications when working with torrents
-- The application requires CloudFlare 1.1.1.1 VPN for certain operations
+- The application requires Cloudflare 1.1.1.1 VPN for certain operations
 
 ### Platform Considerations
 
 - The application sets `java.net.preferIPv4Stack=true` on Windows
-- Uses virtual threads (Java 21+ feature)
+- Uses virtual threads (available since Java 21, project uses Java 25)
 - Configured for HTTP/2
 
 ### External APIs
