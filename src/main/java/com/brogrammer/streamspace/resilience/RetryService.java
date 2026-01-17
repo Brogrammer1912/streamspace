@@ -12,7 +12,7 @@ public class RetryService<T> {
     //@Value("${retryAttempts}")
     private int retryAttempts = 4;
     //@Value("${timeToWait}")
-    private final long timeToWait = TimeUnit.SECONDS.toSeconds(1000);
+    private final long timeToWait = TimeUnit.SECONDS.toMillis(1);
 
     public T retry(RetryExecutor<T> retryExecutor) {
 
