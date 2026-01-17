@@ -66,7 +66,7 @@ public class TorrentDownloadManager {
     }
 
     public void startAllPendingDownloads() {
-        var downloadTasks = new ArrayList<>(downloads.findAll());
+        var downloadTasks = downloads.findAll();
         if (downloadTasks.isEmpty()) {
             log.info("No pending downloads");
         } else  {
