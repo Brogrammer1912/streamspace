@@ -7,7 +7,7 @@ import org.springframework.web.service.annotation.HttpExchange;
 
 import java.util.List;
 
-@HttpExchange(url = "https://yts.mx/api/v2/", accept = MediaType.APPLICATION_JSON_VALUE, contentType = MediaType.APPLICATION_JSON_VALUE)
+@HttpExchange(url = "https://yts.bz/api/v2/", accept = MediaType.APPLICATION_JSON_VALUE, contentType = MediaType.APPLICATION_JSON_VALUE)
 public interface YTSAPIClient {
 
     @GetExchange("list_movies.json?limit=8&sort_by=download_count")
@@ -48,7 +48,7 @@ public interface YTSAPIClient {
 
     /**
      * TODO: Enhance API to fetch some more info
-     * https://yts.mx/api/v2/movie_details.json?movie_id=36846&with_images=true&with_cast=true
+     * https://yts.bz/api/v2/movie_details.json?movie_id=36846&with_images=true&with_cast=true
      */
     @GetExchange("movie_details.json?movie_id={id}")
     YTSMovieRecord getMovieDetails(@PathVariable int id);
