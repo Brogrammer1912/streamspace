@@ -28,10 +28,23 @@ public interface VideoRepository extends ListCrudRepository<Video, String> {
 
     @Query("SELECT v.contentId FROM Video v")
     List<String> findAllContentIds();
+    
+    @Query("SELECT v.contentId FROM Video v WHERE v.contentId IN :contentIds")
+    List<String> findExistingContentIds(@Param("contentIds") List<String> contentIds);
 
     @Transactional
     default void saveVideos(List<Video> videos) {
-        Set<String> existingContentIds = new HashSet<>(findAllContentIds());
+        if (videos.isEmpty()) {
+            return;
+        }
+        
+        // Extract content IDs from the new videos
+        List<String> newContentIds = videos.stream()
+                .map(Video::getContentId)
+                .toList();
+        
+        // Query only for existing IDs from the new batch
+        Set<String> existingContentIds = new HashSet<>(findExistingContentIds(newContentIds));
 
         List<Video> nonExistingVideos = videos.stream()
                 .filter(video -> !existingContentIds.contains(video.getContentId()))

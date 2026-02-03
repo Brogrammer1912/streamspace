@@ -35,6 +35,8 @@ public class Indexer {
 
     @Value("${audio.file.extensions.streaming}")
     private String audioFileExtensions;
+    
+    private String cachedGlobPattern;
 
     private final UnaryOperator<String> decodePathSegment = pathSegment -> UriUtils.decode(pathSegment, StandardCharsets.UTF_8.name());
     private final Function<Path, String> decodeContentType = fileEntryPath -> MediaTypeFactory.getMediaType(new FileSystemResource(fileEntryPath)).orElse(MediaType.APPLICATION_OCTET_STREAM).toString();
@@ -45,11 +47,7 @@ public class Indexer {
     public void indexMovie(TorrentFile file, String torrentName, String fileName, TorrentId torrentId, String contentMimeType) {
         log.info("FileName {}", fileName);
         log.info("TorrentName {}", torrentName);
-        List<Video> videos = videoRepository.findAllByName(fileName);
-        if (!videos.isEmpty()) {
-            videos.forEach(vid -> log.info("Movie Found: {}", vid.getName()));
-            videoRepository.deleteAllByName(fileName);
-        }
+        videoRepository.deleteAllByName(fileName);
         Video video = createVideoEntityTorrentSource(file, torrentName, fileName, torrentId, contentMimeType);
         log.debug("Content ID {}", contentDirectoryServices.getMoviesContentStore() + torrentName + "/" + fileName);
         videoRepository.save(video);
@@ -127,23 +125,29 @@ public class Indexer {
     }
 
     private String buildGlobPattern() {
-        String extensions = Stream.concat(
-                        Arrays.stream(videoFileExtensions.split(",")),
-                        Arrays.stream(audioFileExtensions.split(",")))
-                .map(String::trim)
-                .map(ext -> ext.startsWith(".") ? ext.substring(1) : ext)
-                .collect(Collectors.joining(","));
-        return "glob:**/*.{".concat(extensions).concat("}");
+        if (cachedGlobPattern == null) {
+            String extensions = Stream.concat(
+                            Arrays.stream(videoFileExtensions.split(",")),
+                            Arrays.stream(audioFileExtensions.split(",")))
+                    .map(String::trim)
+                    .map(ext -> ext.startsWith(".") ? ext.substring(1) : ext)
+                    .collect(Collectors.joining(","));
+            cachedGlobPattern = "glob:**/*.{".concat(extensions).concat("}");
+        }
+        return cachedGlobPattern;
     }
 
     private List<Path> filterPaths(List<Path> paths, String... extensions) {
-        Set<String> extensionSet = Set.of(extensions);
+        Set<String> extensionSet = Arrays.stream(extensions)
+                .map(String::toLowerCase)
+                .map(String::trim)
+                .collect(Collectors.toSet());
         return paths.parallelStream()
                 .filter(path -> {
                     String pathString = path.toString().toLowerCase();
                     return extensionSet.stream().anyMatch(pathString::endsWith);
                 })
-                .collect(Collectors.toCollection(ArrayList::new));
+                .toList();
     }
 
     private List<Video> createVideoEntities(List<Path> paths) {
