@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +25,10 @@ public interface MusicRepository extends ListCrudRepository<Song, String> {
 
     @Transactional
     default void saveMusicList(List<Song> songs) {
+        if (CollectionUtils.isEmpty(songs)) {
+            return;
+        }
+
         Set<String> existingContentIds = new HashSet<>(findAllContentIds());
 
         List<Song> nonExistingSongs = songs.stream()

@@ -5,7 +5,6 @@ import bt.metainfo.TorrentId;
 import com.brogrammer.streamspace.services.ContentDirectoryServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
@@ -23,22 +22,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class Indexer {
 
-    @Value("${video.file.extensions.streaming}")
-    private String videoFileExtensions;
-
-    @Value("${audio.file.extensions.streaming}")
-    private String audioFileExtensions;
-
     private final UnaryOperator<String> decodePathSegment = pathSegment -> UriUtils.decode(pathSegment, StandardCharsets.UTF_8.name());
     private final Function<Path, String> decodeContentType = fileEntryPath -> MediaTypeFactory.getMediaType(new FileSystemResource(fileEntryPath)).orElse(MediaType.APPLICATION_OCTET_STREAM).toString();
     final ContentDirectoryServices contentDirectoryServices;
+    final IndexerUtils indexerUtils;
     final VideoRepository videoRepository;
     final MusicRepository musicRepository;
 
@@ -73,8 +66,8 @@ public class Indexer {
     public CompletableFuture<Object> indexLocalMedia(Set<String> locations) {
         return findLocalMediaFiles(locations)
                 .thenCompose(paths -> {
-                    List<Path> musicPaths = filterPaths(paths, audioFileExtensions.split(","));
-                    List<Path> videoFilePaths = filterPaths(paths, videoFileExtensions.split(","));
+                    List<Path> musicPaths = filterPaths(paths, indexerUtils.getAudioFileExtensions());
+                    List<Path> videoFilePaths = filterPaths(paths, indexerUtils.getVideoFileExtensions());
 
                     List<Video> finalVideos = createVideoEntities(videoFilePaths);
                     List<Song> finalSongs = createMusicEntities(musicPaths);
@@ -93,7 +86,7 @@ public class Indexer {
     }
 
     public CompletableFuture<List<Path>> findLocalMediaFiles(Set<String> locations) {
-        final String pattern = buildGlobPattern();
+        final String pattern = indexerUtils.buildGlobPattern();
         List<CompletableFuture<List<Path>>> futures = new ArrayList<>();
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher(pattern);
 
@@ -126,24 +119,17 @@ public class Indexer {
                         .toList());
     }
 
-    private String buildGlobPattern() {
-        String extensions = Stream.concat(
-                        Arrays.stream(videoFileExtensions.split(",")),
-                        Arrays.stream(audioFileExtensions.split(",")))
-                .map(String::trim)
-                .map(ext -> ext.startsWith(".") ? ext.substring(1) : ext)
-                .collect(Collectors.joining(","));
-        return "glob:**/*.{".concat(extensions).concat("}");
-    }
-
     private List<Path> filterPaths(List<Path> paths, String... extensions) {
-        Set<String> extensionSet = Set.of(extensions);
+        Set<String> extensionSet = Arrays.stream(extensions)
+                .map(String::toLowerCase)
+                .map(String::trim)
+                .collect(Collectors.toSet());
         return paths.parallelStream()
                 .filter(path -> {
                     String pathString = path.toString().toLowerCase();
                     return extensionSet.stream().anyMatch(pathString::endsWith);
                 })
-                .collect(Collectors.toCollection(ArrayList::new));
+                .toList();
     }
 
     private List<Video> createVideoEntities(List<Path> paths) {

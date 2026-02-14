@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import com.dampcake.bencode.Bencode;
@@ -56,7 +55,7 @@ public class TorrentDownloadManager {
     }
 
     public void startAllPendingDownloads() {
-        var downloadTasks = new ArrayList<>(downloads.findAll());
+        var downloadTasks = downloads.findAll();
         if (downloadTasks.isEmpty()) {
             log.info("No pending downloads");
         } else  {
