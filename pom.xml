@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.10</version>
+		<version>4.0.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.akshathsaipittala</groupId>
@@ -17,7 +17,6 @@
 	<properties>
 		<java.version>25</java.version>
 		<bt.version>1.10</bt.version>
-		<spring.content.version>3.0.17</spring.content.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -30,7 +29,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -53,17 +52,19 @@
 		<dependency>
 			<groupId>io.github.wimdeblauwe</groupId>
 			<artifactId>htmx-spring-boot-thymeleaf</artifactId>
-			<version>4.0.1</version>
+			<version>5.0.0</version>
 		</dependency>
 		<dependency>
-			<groupId>com.github.paulcwarren</groupId>
+			<groupId>io.github.vsvyatski</groupId>
 			<artifactId>spring-content-fs-boot-starter</artifactId>
-			<version>${spring.content.version}</version>
+			<version>4.0.2</version>
+			<scope>compile</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.github.paulcwarren</groupId>
+			<groupId>io.github.vsvyatski</groupId>
 			<artifactId>spring-content-rest-boot-starter</artifactId>
-			<version>${spring.content.version}</version>
+			<version>4.0.2</version>
+			<scope>compile</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.jsoup</groupId>
@@ -113,7 +114,7 @@
 		<!-- WebJARs -->
 		<dependency>
 			<groupId>org.webjars</groupId>
-			<artifactId>webjars-locator-core</artifactId>
+			<artifactId>webjars-locator-lite</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.webjars</groupId>
