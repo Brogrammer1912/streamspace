@@ -13,8 +13,8 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 public class APIClientsBuilder {
 
     @Bean
-    RestClient restClient(RestClient.Builder builder) {
-        return builder.build();
+    RestClient restClient() {
+        return RestClient.builder().build();
     }
 
     @Bean

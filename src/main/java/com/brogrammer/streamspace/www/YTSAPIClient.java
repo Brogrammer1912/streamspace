@@ -7,7 +7,7 @@ import org.springframework.web.service.annotation.HttpExchange;
 
 import java.util.List;
 
-@HttpExchange(url = "https://yts.bz/api/v2/", accept = MediaType.APPLICATION_JSON_VALUE, contentType = MediaType.APPLICATION_JSON_VALUE)
+@HttpExchange(url = "https://movies-api.accel.li/api/v2/", accept = MediaType.APPLICATION_JSON_VALUE, contentType = MediaType.APPLICATION_JSON_VALUE)
 public interface YTSAPIClient {
 
     @GetExchange("list_movies.json?limit=8&sort_by=download_count")
