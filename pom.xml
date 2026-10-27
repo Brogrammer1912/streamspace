@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.akshathsaipittala</groupId>
@@ -15,7 +15,7 @@
 	<name>streamspace</name>
 	<description>StreamSpace</description>
 	<properties>
-		<java.version>25</java.version>
+		<java.version>26</java.version>
 		<bt.version>1.10</bt.version>
 	</properties>
 	<dependencies>
@@ -135,6 +135,12 @@
 			<groupId>org.webjars.npm</groupId>
 			<artifactId>htmx-ext-ws</artifactId>
 			<version>2.0.4</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.webjars.npm</groupId>
+					<artifactId>htmx.org</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
